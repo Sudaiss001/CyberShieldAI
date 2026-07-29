@@ -64,12 +64,25 @@ Route::middleware('auth:sanctum')
         Route::get('/{id}/status', [DocumentScanController::class, 'status'])->name('status');
     });
 
+use App\Http\Controllers\Api\V1\Scans\AudioScanController;
+use App\Http\Controllers\Api\V1\Scans\VideoScanController;
+
 Route::middleware('auth:sanctum')
-    ->prefix('image-scans')
-    ->as('image-scans.')
+    ->prefix('audio-scans')
+    ->as('audio-scans.')
     ->group(function () {
-        Route::post('/', [ImageScanController::class, 'store'])->name('store');
-        Route::get('/', [ImageScanController::class, 'index'])->name('index');
-        Route::get('/{id}', [ImageScanController::class, 'show'])->name('show');
-        Route::get('/{id}/status', [ImageScanController::class, 'status'])->name('status');
+        Route::post('/', [AudioScanController::class, 'store'])->name('store');
+        Route::get('/', [AudioScanController::class, 'index'])->name('index');
+        Route::get('/{id}', [AudioScanController::class, 'show'])->name('show');
+        Route::get('/{id}/status', [AudioScanController::class, 'status'])->name('status');
+    });
+
+Route::middleware('auth:sanctum')
+    ->prefix('video-scans')
+    ->as('video-scans.')
+    ->group(function () {
+        Route::post('/', [VideoScanController::class, 'store'])->name('store');
+        Route::get('/', [VideoScanController::class, 'index'])->name('index');
+        Route::get('/{id}', [VideoScanController::class, 'show'])->name('show');
+        Route::get('/{id}/status', [VideoScanController::class, 'status'])->name('status');
     });
