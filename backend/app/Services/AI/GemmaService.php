@@ -28,7 +28,7 @@ class GemmaService implements AiProviderInterface
 
     public function modelName(): string
     {
-        return (string) config('services.gemma.model', 'gemma-3-27b-it');
+        return (string) config('services.gemma.model', 'gemma-4-26b-a4b-it');
     }
 
     public function buildPrompt(array $scannerFindings): string

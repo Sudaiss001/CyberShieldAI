@@ -28,14 +28,48 @@ const SCANNER_TYPE_ICON = {
   audio: AudioLines, video: Video, qr: QrCode, ai: Sparkles,
 } as const;
 
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/api-client";
+
 export function DashboardHome() {
+  const { user } = useAuth();
   const tips = SECURITY_TIPS[0];
+  const [apiScans, setApiScans] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadScans() {
+      try {
+        const res = await apiRequest<{ scans: any[] }>("/scans");
+        if (res.success && Array.isArray(res.data?.scans)) {
+          setApiScans(res.data.scans);
+        }
+      } catch {
+        // Fallback to sample data
+      }
+    }
+    loadScans();
+  }, []);
+
+  const userName = user?.name ? user.name.split(" ")[0] : MOCK_USER.name.split(" ")[0];
+  const recentScans = apiScans.length > 0
+    ? apiScans.slice(0, 5).map((s) => ({
+        id: String(s.id),
+        target: s.target || "Target",
+        type: (s.scan_type || "url") as any,
+        category: `${s.scan_type?.toUpperCase() || "URL"} Scan`,
+        threatLevel: (s.risk_level || s.report?.risk_level || "safe").toLowerCase() as any,
+        riskScore: s.report?.risk_score ?? 0,
+      }))
+    : RECENT_SCANS.slice(0, 5);
+
+  const totalScansCount = apiScans.length > 0 ? apiScans.length : DASHBOARD_STATS.totalScans;
 
   return (
     <div>
       <DashboardHeader
-        title={`Welcome back, ${MOCK_USER.name.split(" ")[0]}`}
-        description="Here's your security posture at a glance. Last updated 2 minutes ago."
+        title={`Welcome back, ${userName}`}
+        description="Here's your security posture at a glance. Updated real-time."
         actions={
           <CyberButton to={ROUTES.aiScanner} icon={<Sparkles size={16} />} glow>
             New Scan
@@ -213,7 +247,7 @@ export function DashboardHome() {
               </button>
             </div>
             <div className="space-y-2">
-              {RECENT_SCANS.slice(0, 5).map((scan) => {
+              {recentScans.map((scan) => {
                 const Icon = SCANNER_TYPE_ICON[scan.type];
                 return (
                   <motion.button

@@ -38,17 +38,83 @@ function formatDate(iso: string) {
   });
 }
 
+import { useState, useEffect } from "react";
+import { apiRequest } from "@/lib/api-client";
+
 export function ReportDetailsPage() {
   const [path] = useHashRoute();
   const { toast } = useToast();
+  const [apiScan, setApiScan] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   // Extract scan ID from path: /reports/{id}
   const scanId = path.replace(ROUTES.reportDetails, "");
-  const report =
+
+  useEffect(() => {
+    async function loadScan() {
+      if (!scanId || scanId.startsWith("sample-")) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const res = await apiRequest<{ scan: any }>(`/scans/${scanId}`);
+        if (res.success && res.data?.scan) {
+          setApiScan(res.data.scan);
+        }
+      } catch {
+        // Fallback to sample report
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadScan();
+  }, [scanId]);
+
+  const fallbackReport =
     SAMPLE_REPORTS.find((r) => r.scanId === scanId || r.id === scanId) ??
     SAMPLE_REPORTS[0];
-  const scan = RECENT_SCANS.find((s) => s.id === report.scanId) ?? RECENT_SCANS[0];
-  const Icon = SCANNER_ICON[report.type];
+  const fallbackScan = RECENT_SCANS.find((s) => s.id === fallbackReport.scanId) ?? RECENT_SCANS[0];
+
+  const report = apiScan?.report
+    ? {
+        id: `REP-${apiScan.report.id}`,
+        scanId: String(apiScan.id),
+        threatLevel: (apiScan.risk_level || apiScan.report.risk_level || "safe").toLowerCase() as ThreatLevel,
+        riskScore: apiScan.report.risk_score ?? 0,
+        confidence: 95,
+        target: apiScan.target,
+        type: (apiScan.scan_type || "url") as ScannerType,
+        category: `${apiScan.scan_type?.toUpperCase() || "URL"} Threat Assessment`,
+        executiveSummary: apiScan.report.summary || "Scan completed.",
+        createdAt: apiScan.created_at || new Date().toISOString(),
+        indicators: (apiScan.report.indicators || []).map((i: any) => ({
+          label: i.label || "Indicator",
+          value: i.value || "Normal",
+          severity: i.severity || "info",
+        })),
+        evidence: (apiScan.report.evidence || []).map((e: any) => ({
+          title: e.title || "Finding",
+          description: e.description || "",
+          snippet: e.snippet || "",
+          severity: (e.severity || "safe").toLowerCase() as ThreatLevel,
+        })),
+        recommendations: (apiScan.report.recommendations || []).map((r: any) => r.recommendation || r),
+        preventionTips: [
+          "Enable multi-factor authentication (MFA) across all critical accounts.",
+          "Inspect domain names carefully for typosquatting before entering credentials.",
+          "Keep security certificates and web browsers updated to the latest versions.",
+        ],
+        tags: (apiScan.report.tags || []).map((t: any) => t.tag || t),
+      }
+    : fallbackReport;
+
+  const scan = apiScan
+    ? { id: String(apiScan.id), target: apiScan.target, type: apiScan.scan_type, threatLevel: (apiScan.risk_level || "safe").toLowerCase() as ThreatLevel }
+    : fallbackScan;
+
+  const Icon = SCANNER_ICON[report.type] || Link2;
 
   const threatConfig: Record<ThreatLevel, { color: string; icon: any; label: string }> = {
     critical: { color: "#ef4444", icon: ShieldX, label: "Critical Threat" },

@@ -25,8 +25,11 @@ function getStrength(pwd: string) {
   return Math.min(3, score);
 }
 
+import { useAuth } from "@/hooks/use-auth";
+
 export function RegisterPage() {
   const { toast } = useToast();
+  const { register } = useAuth();
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -38,18 +41,22 @@ export function RegisterPage() {
 
   const strength = getStrength(form.password);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.agree) {
       toast({ title: "Please accept the terms", variant: "destructive" });
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast({ title: "Account created!", description: "Check your email for verification code." });
-      navigate(ROUTES.verifyEmail);
-    }, 1500);
+    const success = await register(form.name, form.email, form.password, form.password);
+    setLoading(false);
+
+    if (success) {
+      toast({ title: "Account created!", description: "Account created and logged in. Redirecting..." });
+      navigate(ROUTES.dashboard);
+    } else {
+      toast({ title: "Registration failed", description: "Please check your details and try again.", variant: "destructive" });
+    }
   };
 
   return (

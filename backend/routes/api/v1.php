@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Scans\AiAnalysisController;
 use App\Http\Controllers\Api\V1\Scans\AudioScanController;
 use App\Http\Controllers\Api\V1\Scans\DocumentScanController;
 use App\Http\Controllers\Api\V1\Scans\EmailScanController;
@@ -44,6 +45,10 @@ Route::middleware('auth:sanctum')
         Route::get('/', [ScanController::class, 'index'])->name('index');
         Route::get('/{id}', [ScanController::class, 'show'])->name('show');
         Route::get('/{id}/status', [ScanController::class, 'status'])->name('status');
+        Route::post('/{id}/analyze-ai', [AiAnalysisController::class, 'store'])
+            ->middleware('throttle:ai-analysis')
+            ->name('analyze-ai');
+        Route::get('/{id}/ai-analysis', [AiAnalysisController::class, 'show'])->name('ai-analysis');
     });
 
 Route::middleware('auth:sanctum')

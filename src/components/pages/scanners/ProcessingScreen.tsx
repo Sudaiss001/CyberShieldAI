@@ -9,35 +9,76 @@ import { navigate, goBack } from "@/hooks/use-router";
 import { ROUTES } from "@/lib/routes";
 import { PROCESSING_STEPS } from "@/lib/mock-data";
 
+import { useHashRoute } from "@/hooks/use-router";
+import { apiRequest } from "@/lib/api-client";
+
 export function ProcessingScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [activeScanId, setActiveScanId] = useState<string | null>(null);
+  const [statusComplete, setStatusComplete] = useState<boolean>(false);
 
   useEffect(() => {
-    const stepDuration = 900;
-    const interval = setInterval(() => {
-      setCurrentStep((prev) => {
-        if (prev >= PROCESSING_STEPS.length - 1) {
-          clearInterval(interval);
-          // Navigate to report after a brief pause
-          setTimeout(() => navigate(`${ROUTES.reportDetails}scan_001`), 800);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, stepDuration);
+    const storedId = typeof window !== "undefined" ? window.sessionStorage.getItem("active_scan_id") : null;
+    setActiveScanId(storedId);
 
-    const progressInterval = setInterval(() => {
-      setProgress((p) => Math.min(100, p + Math.random() * 4));
-    }, 80);
+    if (!storedId) {
+      // Fallback simulation timer
+      const stepDuration = 900;
+      const interval = setInterval(() => {
+        setCurrentStep((prev) => {
+          if (prev >= PROCESSING_STEPS.length - 1) {
+            clearInterval(interval);
+            setTimeout(() => navigate(`${ROUTES.reportDetails}scan_001`), 800);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, stepDuration);
+
+      const progressInterval = setInterval(() => {
+        setProgress((p) => Math.min(100, p + Math.random() * 4));
+      }, 80);
+
+      return () => {
+        clearInterval(interval);
+        clearInterval(progressInterval);
+      };
+    }
+
+    // Real API polling
+    let isCancelled = false;
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await apiRequest<{ scan: { status: string; progress: number; id: number } }>(`/scans/${storedId}/status`);
+        if (res.success && res.data?.scan && !isCancelled) {
+          const scan = res.data.scan;
+          setProgress(scan.progress || 0);
+
+          if (scan.status === "completed") {
+            setStatusComplete(true);
+            setCurrentStep(PROCESSING_STEPS.length - 1);
+            clearInterval(pollInterval);
+            setTimeout(() => {
+              window.sessionStorage.removeItem("active_scan_id");
+              navigate(`${ROUTES.reportDetails}${scan.id}`);
+            }, 800);
+          } else if (scan.status === "processing") {
+            setCurrentStep(Math.min(PROCESSING_STEPS.length - 2, Math.floor((scan.progress / 100) * PROCESSING_STEPS.length)));
+          }
+        }
+      } catch {
+        // Fallback
+      }
+    }, 1000);
 
     return () => {
-      clearInterval(interval);
-      clearInterval(progressInterval);
+      isCancelled = true;
+      clearInterval(pollInterval);
     };
   }, []);
 
-  const isComplete = currentStep >= PROCESSING_STEPS.length - 1;
+  const isComplete = statusComplete || currentStep >= PROCESSING_STEPS.length - 1;
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center">

@@ -72,6 +72,8 @@ const TABS_BY_SCANNER: Record<ScannerMetaKey, { id: string; label: string; icon:
   ],
 };
 
+import { apiRequest } from "@/lib/api-client";
+
 export function ScannerPage({ scannerKey }: ScannerPageProps) {
   const { toast } = useToast();
   const metaKey = SCANNER_MAP[scannerKey];
@@ -79,13 +81,55 @@ export function ScannerPage({ scannerKey }: ScannerPageProps) {
   const iconName = meta.icon;
   const tabs = TABS_BY_SCANNER[metaKey];
   const [activeTab, setActiveTab] = useState(tabs[0].id);
+  const [inputValue, setInputValue] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const handleScan = () => {
+  const handleScan = async () => {
     toast({
       title: "Scan started",
       description: `Analyzing your ${meta.title.toLowerCase()} input...`,
     });
-    setTimeout(() => navigate(ROUTES.processing), 600);
+
+    try {
+      let res: any = null;
+      if (metaKey === "email" && selectedFile) {
+        const formData = new FormData();
+        formData.append("email_file", selectedFile);
+        res = await apiRequest<{ scan: { id: number } }>("/email-scans", { method: "POST", body: formData });
+      } else if (metaKey === "document" && selectedFile) {
+        const formData = new FormData();
+        formData.append("document_file", selectedFile);
+        res = await apiRequest<{ scan: { id: number } }>("/document-scans", { method: "POST", body: formData });
+      } else if (metaKey === "image" && selectedFile) {
+        const formData = new FormData();
+        formData.append("image_file", selectedFile);
+        res = await apiRequest<{ scan: { id: number } }>("/image-scans", { method: "POST", body: formData });
+      } else if (metaKey === "audio" && selectedFile) {
+        const formData = new FormData();
+        formData.append("audio_file", selectedFile);
+        res = await apiRequest<{ scan: { id: number } }>("/audio-scans", { method: "POST", body: formData });
+      } else if (metaKey === "video" && selectedFile) {
+        const formData = new FormData();
+        formData.append("video_file", selectedFile);
+        res = await apiRequest<{ scan: { id: number } }>("/video-scans", { method: "POST", body: formData });
+      } else {
+        const target = inputValue.trim() || (metaKey === "url" ? "https://suspicious-sample-site.com" : `${metaKey}_sample_target`);
+        res = await apiRequest<{ scan: { id: number } }>("/scans", {
+          method: "POST",
+          body: JSON.stringify({ scan_type: metaKey, target }),
+        });
+      }
+
+      if (res?.success && res.data?.scan?.id) {
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem("active_scan_id", String(res.data.scan.id));
+        }
+      }
+    } catch {
+      // Fallback to simulation
+    }
+
+    setTimeout(() => navigate(ROUTES.processing), 400);
   };
 
   return (
@@ -145,7 +189,10 @@ export function ScannerPage({ scannerKey }: ScannerPageProps) {
                   formats={meta.formats as unknown as string[]}
                   iconName={iconName}
                   accentColor={meta.accent}
-                  onFileSelected={() => toast({ title: "File added", description: "Ready to scan." })}
+                  onFileSelected={(file) => {
+                    setSelectedFile(file);
+                    toast({ title: "File added", description: `${file.name} ready to scan.` });
+                  }}
                 />
               )}
 
@@ -162,6 +209,8 @@ export function ScannerPage({ scannerKey }: ScannerPageProps) {
                   </div>
                   <textarea
                     rows={6}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
                     placeholder={
                       activeTab === "url"
                         ? "https://suspicious-site.com/login"

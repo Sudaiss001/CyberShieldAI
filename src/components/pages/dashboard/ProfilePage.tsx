@@ -19,7 +19,16 @@ const ICON_MAP: Record<string, any> = {
   Mail: Mail, Files: Activity,
 };
 
+import { useAuth } from "@/hooks/use-auth";
+
 export function ProfilePage() {
+  const { user } = useAuth();
+
+  const name = user?.name || MOCK_USER.name;
+  const email = user?.email || MOCK_USER.email;
+  const role = user?.role ? user.role.toUpperCase() : MOCK_USER.role;
+  const avatar = name ? name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() : MOCK_USER.avatar;
+
   return (
     <div>
       <DashboardHeader
@@ -50,7 +59,7 @@ export function ProfilePage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
             <div className="relative shrink-0">
               <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#00d4ff] to-[#a855f7] flex items-center justify-center text-3xl font-bold text-[#0a0e1a]">
-                {MOCK_USER.avatar}
+                {avatar}
               </div>
               <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 border-4 border-background flex items-center justify-center" title="Online">
                 <CheckCircle2 size={12} className="text-white" />
@@ -59,14 +68,14 @@ export function ProfilePage() {
 
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-2xl font-bold">{MOCK_USER.name}</h2>
+                <h2 className="text-2xl font-bold">{name}</h2>
                 <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-gradient-to-r from-[#a855f7] to-[#8b5cf6] text-white">
                   {MOCK_USER.plan}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">{MOCK_USER.role}</p>
+              <p className="text-sm text-muted-foreground">{role}</p>
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Mail size={12} /> {MOCK_USER.email}</span>
+                <span className="flex items-center gap-1.5"><Mail size={12} /> {email}</span>
                 <span className="flex items-center gap-1.5"><Calendar size={12} /> Joined {new Date(MOCK_USER.joinedAt).toLocaleDateString()}</span>
                 <span className="flex items-center gap-1.5"><MapPin size={12} /> Lagos, NG</span>
                 <span className="flex items-center gap-1.5"><Briefcase size={12} /> Security Team</span>

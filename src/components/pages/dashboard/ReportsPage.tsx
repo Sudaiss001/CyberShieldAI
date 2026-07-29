@@ -42,18 +42,53 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+import { useEffect } from "react";
+import { apiRequest } from "@/lib/api-client";
+
 export function ReportsPage() {
   const [filter, setFilter] = useState<ThreatLevel | "all">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [apiScans, setApiScans] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadScans() {
+      try {
+        const res = await apiRequest<{ scans: any[] }>("/scans");
+        if (res.success && Array.isArray(res.data?.scans)) {
+          setApiScans(res.data.scans);
+        }
+      } catch {
+        // Fallback to sample data
+      }
+    }
+    loadScans();
+  }, []);
+
+  const allReports = useMemo(() => {
+    if (apiScans.length > 0) {
+      return apiScans.map((s) => ({
+        id: String(s.id),
+        scanId: String(s.id),
+        type: (s.scan_type || "url") as ScannerType,
+        target: s.target || "Target",
+        threatLevel: (s.risk_level || s.report?.risk_level || "safe").toLowerCase() as ThreatLevel,
+        riskScore: s.report?.risk_score ?? 0,
+        category: `${s.scan_type?.toUpperCase() || "URL"} Scan`,
+        summary: s.report?.summary || "Scan processing completed.",
+        createdAt: s.created_at || new Date().toISOString(),
+      }));
+    }
+    return ALL_REPORTS;
+  }, [apiScans]);
 
   const filtered = useMemo(() => {
-    return ALL_REPORTS.filter((r) => {
+    return allReports.filter((r) => {
       if (filter !== "all" && r.threatLevel !== filter) return false;
       if (search && !r.target.toLowerCase().includes(search.toLowerCase()) && !r.category.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [filter, search]);
+  }, [allReports, filter, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, totalPages);

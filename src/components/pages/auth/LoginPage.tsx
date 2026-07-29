@@ -8,20 +8,27 @@ import { navigate } from "@/hooks/use-router";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/hooks/use-toast";
 
+import { useAuth } from "@/hooks/use-auth";
+
 export function LoginPage() {
   const { toast } = useToast();
+  const { login } = useAuth();
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", remember: true });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast({ title: "Welcome back!", description: "Redirecting to your dashboard..." });
+    const success = await login(form.email, form.password);
+    setLoading(false);
+
+    if (success) {
+      toast({ title: "Welcome back!", description: "Authenticated successfully. Redirecting..." });
       navigate(ROUTES.dashboard);
-    }, 1200);
+    } else {
+      toast({ title: "Authentication Failed", description: "Invalid credentials or server connection issue.", variant: "destructive" });
+    }
   };
 
   return (
