@@ -75,4 +75,9 @@ class Scan extends Model
     {
         return $this->hasOne(Report::class);
     }
+
+    public function aiRequests(): HasMany
+    {
+        return $this->hasMany(AiRequest::class);
+    }
 }

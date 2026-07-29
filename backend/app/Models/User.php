@@ -70,6 +70,11 @@ class User extends Authenticatable
         return $this->hasMany(Report::class);
     }
 
+    public function aiRequests(): HasMany
+    {
+        return $this->hasMany(AiRequest::class);
+    }
+
     public function hasRole(string|array $roles): bool
     {
         $roles = (array) $roles;
