@@ -96,6 +96,26 @@ class ScanService
         });
     }
 
+    public function createDocumentScan(User $user, array $input): Scan
+    {
+        return $this->createFileBackedScan($user, Scan::TYPE_DOCUMENT, $input, 'document');
+    }
+
+    public function createImageScan(User $user, array $input): Scan
+    {
+        return $this->createFileBackedScan($user, $input['scan_type'] ?? Scan::TYPE_IMAGE, $input, 'image');
+    }
+
+    public function createAudioScan(User $user, array $input): Scan
+    {
+        return $this->createFileBackedScan($user, Scan::TYPE_AUDIO, $input, 'audio');
+    }
+
+    public function createVideoScan(User $user, array $input): Scan
+    {
+        return $this->createFileBackedScan($user, Scan::TYPE_VIDEO, $input, 'video');
+    }
+
     public function listUserScans(User $user, int $perPage = 15, ?string $scanType = null): LengthAwarePaginator
     {
         return $user->scans()
@@ -221,6 +241,50 @@ class ScanService
     private function runScanner(Scan $scan): ScanResult
     {
         return $this->scannerFactory->getScanner($scan->scan_type)->scan($scan);
+    }
+
+    private function createFileBackedScan(User $user, string $scanType, array $input, string $sourcePrefix): Scan
+    {
+        return DB::transaction(function () use ($user, $scanType, $input, $sourcePrefix): Scan {
+            $scan = $user->scans()->create([
+                'scan_type' => $scanType,
+                'target' => $input['target'],
+                'status' => Scan::STATUS_QUEUED,
+                'risk_level' => null,
+                'started_at' => null,
+                'completed_at' => null,
+            ]);
+
+            $this->createWorkflowSteps($scan);
+
+            $extension = $input['extension'] ?? pathinfo((string) $input['file_name'], PATHINFO_EXTENSION);
+            $path = 'scans/'.$scan->id.'/'.$sourcePrefix.'-source-'.substr((string) $input['hash'], 0, 12).'.'.$extension;
+
+            if (! Storage::disk('local')->put($path, $input['content'])) {
+                throw new RuntimeException('Unable to store uploaded '.$sourcePrefix.' source for scanning.');
+            }
+
+            $scan->files()->create([
+                'file_name' => $input['file_name'],
+                'file_path' => $path,
+                'mime_type' => $input['mime_type'],
+                'file_size' => $input['file_size'],
+                'hash' => $input['hash'],
+            ]);
+
+            $scan->events()->create([
+                'event_type' => 'scan.created',
+                'event_data' => [
+                    'scan_type' => $scan->scan_type,
+                    'target' => $scan->target,
+                    $sourcePrefix.'_source_type' => $input['source_type'],
+                    'file_name' => $input['file_name'],
+                    'hash' => $input['hash'],
+                ],
+            ]);
+
+            return $scan->load(['files', 'steps', 'events']);
+        });
     }
 
     private function persistScanResult(Scan $scan, ScanResult $scanResult): Report
