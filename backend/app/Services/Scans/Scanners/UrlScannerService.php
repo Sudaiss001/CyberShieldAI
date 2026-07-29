@@ -229,6 +229,10 @@ class UrlScannerService implements ScannerInterface
             }
         }
 
+        if (empty($recommendationsList)) {
+            $recommendationsList[] = ['recommendation' => 'No immediate security remediation required. Maintain active HTTPS and secure header configuration.', 'sort_order' => 1];
+        }
+
         $finalScore = min(100, max(0, $riskScore));
         $riskLevel = $this->classifyRisk($finalScore);
 
@@ -271,15 +275,29 @@ class UrlScannerService implements ScannerInterface
                 ])->get($currentUrl);
 
                 $reachable = true;
-                $statusCode = $response->status();
+                $statusCode = method_exists($response, 'status') ? $response->status() : $response->getStatusCode();
+                $isRedirect = $statusCode >= 300 && $statusCode < 400;
 
                 $redirectChain[] = [
                     'url' => $currentUrl,
                     'status' => $statusCode,
                 ];
 
-                if ($response->isRedirect()) {
-                    $location = $response->header('Location');
+                $headers = [];
+                if (method_exists($response, 'headers')) {
+                    $headers = array_change_key_case($response->headers(), CASE_LOWER);
+                } elseif (method_exists($response, 'getHeaders')) {
+                    $headers = array_change_key_case($response->getHeaders(), CASE_LOWER);
+                }
+
+                if ($isRedirect) {
+                    $location = null;
+                    if (isset($headers['location'])) {
+                        $location = is_array($headers['location']) ? $headers['location'][0] : $headers['location'];
+                    } elseif (method_exists($response, 'getHeaderLine')) {
+                        $location = $response->getHeaderLine('Location');
+                    }
+
                     if (! $location) {
                         $finalResponse = $response;
                         break;
@@ -320,9 +338,19 @@ class UrlScannerService implements ScannerInterface
 
         $statusCode = null;
         if ($finalResponse) {
-            $statusCode = $finalResponse->status();
+            $statusCode = method_exists($finalResponse, 'status') ? $finalResponse->status() : $finalResponse->getStatusCode();
+            $responseHeaders = [];
+            if (method_exists($finalResponse, 'headers')) {
+                $responseHeaders = array_change_key_case($finalResponse->headers(), CASE_LOWER);
+            } elseif (method_exists($finalResponse, 'getHeaders')) {
+                $responseHeaders = array_change_key_case($finalResponse->getHeaders(), CASE_LOWER);
+            }
+
             foreach ($securityHeaders as $headerName => &$present) {
-                if ($finalResponse->hasHeader($headerName)) {
+                $lowerKey = strtolower($headerName);
+                if (isset($responseHeaders[$lowerKey])) {
+                    $present = true;
+                } elseif (method_exists($finalResponse, 'hasHeader') && $finalResponse->hasHeader($headerName)) {
                     $present = true;
                 }
             }

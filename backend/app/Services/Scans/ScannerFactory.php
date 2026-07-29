@@ -16,6 +16,7 @@ class ScannerFactory
      */
     private array $scanners = [
         UrlScannerService::class,
+        \App\Services\Scans\EmailScannerService::class,
     ];
 
     /**

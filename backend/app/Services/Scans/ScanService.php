@@ -23,16 +23,8 @@ class ScanService
         'Generating report',
     ];
 
-    /**
-     * @var array<int, ScannerInterface>
-     */
-    private array $scanners;
-
-    public function __construct(EmailScannerService $emailScannerService)
+    public function __construct(private readonly ScannerFactory $scannerFactory)
     {
-        $this->scanners = [
-            $emailScannerService,
-        ];
     }
 
     public function createScan(User $user, array $data): Scan
@@ -153,7 +145,7 @@ class ScanService
             $scan->events()->create([
                 'event_type' => 'scan.processing_started',
                 'event_data' => [
-                    'workflow' => $this->scannerFor($scan->scan_type) ? $scan->scan_type.'_scanner' : 'simulated',
+                    'workflow' => $this->scannerFactory->getScanner($scan->scan_type) ? $scan->scan_type.'_scanner' : 'simulated',
                 ],
             ]);
 
@@ -228,24 +220,7 @@ class ScanService
 
     private function runScanner(Scan $scan): ScanResult
     {
-        $scanner = $this->scannerFor($scan->scan_type);
-
-        if ($scanner) {
-            return $scanner->scan($scan);
-        }
-
-        return $this->simulatedScanResult($scan);
-    }
-
-    private function scannerFor(string $scanType): ?ScannerInterface
-    {
-        foreach ($this->scanners as $scanner) {
-            if ($scanner->supports($scanType)) {
-                return $scanner;
-            }
-        }
-
-        return null;
+        return $this->scannerFactory->getScanner($scan->scan_type)->scan($scan);
     }
 
     private function persistScanResult(Scan $scan, ScanResult $scanResult): Report
