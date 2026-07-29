@@ -277,7 +277,7 @@ class ScanService
                 'event_data' => [
                     'scan_type' => $scan->scan_type,
                     'target' => $scan->target,
-                    $sourcePrefix.'_source_type' => $input['source_type'],
+                    $sourcePrefix.'_source_type' => $input['source_type'] ?? ($input['file_name'] ? 'file' : 'target'),
                     'file_name' => $input['file_name'],
                     'hash' => $input['hash'],
                 ],

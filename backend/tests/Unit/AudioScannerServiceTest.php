@@ -4,10 +4,12 @@ namespace Tests\Unit;
 
 use App\Models\Scan;
 use App\Services\Scans\Scanners\AudioScannerService;
-use PHPUnit\Framework\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class AudioScannerServiceTest extends TestCase
 {
+    use RefreshDatabase;
     private AudioScannerService $scanner;
 
     protected function setUp(): void

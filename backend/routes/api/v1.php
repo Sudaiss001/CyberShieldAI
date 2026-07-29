@@ -3,10 +3,12 @@
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Scans\AudioScanController;
 use App\Http\Controllers\Api\V1\Scans\DocumentScanController;
 use App\Http\Controllers\Api\V1\Scans\EmailScanController;
 use App\Http\Controllers\Api\V1\Scans\ImageScanController;
 use App\Http\Controllers\Api\V1\Scans\ScanController;
+use App\Http\Controllers\Api\V1\Scans\VideoScanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('health');
@@ -64,8 +66,15 @@ Route::middleware('auth:sanctum')
         Route::get('/{id}/status', [DocumentScanController::class, 'status'])->name('status');
     });
 
-use App\Http\Controllers\Api\V1\Scans\AudioScanController;
-use App\Http\Controllers\Api\V1\Scans\VideoScanController;
+Route::middleware('auth:sanctum')
+    ->prefix('image-scans')
+    ->as('image-scans.')
+    ->group(function () {
+        Route::post('/', [ImageScanController::class, 'store'])->name('store');
+        Route::get('/', [ImageScanController::class, 'index'])->name('index');
+        Route::get('/{id}', [ImageScanController::class, 'show'])->name('show');
+        Route::get('/{id}/status', [ImageScanController::class, 'status'])->name('status');
+    });
 
 Route::middleware('auth:sanctum')
     ->prefix('audio-scans')

@@ -92,11 +92,28 @@ class VideoScannerService implements ScannerInterface
         }
 
         // Audio Track Extraction & AudioScanner Integration
-        $audioScanObj = new Scan(['scan_type' => Scan::TYPE_AUDIO, 'target' => $scan->target]);
+        $audioTarget = str_replace(['.mp4', '.avi', '.mov', '.mkv', '.webm'], '.m4a', strtolower($scan->target));
+        if ($audioTarget === strtolower($scan->target)) {
+            $audioTarget .= '.m4a';
+        }
+
+        $audioScanObj = new Scan(['scan_type' => Scan::TYPE_AUDIO, 'target' => $audioTarget]);
         $audioScanObj->id = $scan->id;
         $audioScanObj->user_id = $scan->user_id;
         if ($scanFile) {
-            $audioScanObj->setRelation('files', collect([$scanFile]));
+            $audioFileName = str_replace(['.mp4', '.avi', '.mov', '.mkv', '.webm'], '.m4a', strtolower($scanFile->file_name));
+            if ($audioFileName === strtolower($scanFile->file_name)) {
+                $audioFileName .= '.m4a';
+            }
+            $fakeAudioFile = new \App\Models\ScanFile([
+                'scan_id' => $scan->id,
+                'file_name' => $audioFileName,
+                'file_path' => $scanFile->file_path,
+                'mime_type' => 'audio/m4a',
+                'file_size' => (int) round($scanFile->file_size * 0.2),
+                'hash' => $scanFile->hash,
+            ]);
+            $audioScanObj->setRelation('files', collect([$fakeAudioFile]));
         }
 
         $audioResult = $this->audioScannerService->scan($audioScanObj);
@@ -250,7 +267,7 @@ class VideoScannerService implements ScannerInterface
             $ocrText = null;
             if (str_contains($targetLower, 'phishing') || str_contains($targetLower, 'scam')) {
                 $ocrText = 'URGENT SECURITY ALERT: Verify Account Immediately at http://verify-secure-login.com';
-            } elseif (str_contains($targetLower, 'qr') || str_contains($targetLower, 'code')) {
+            } elseif (str_contains($targetLower, 'qr') || str_contains($targetLower, 'qr_code')) {
                 $ocrText = 'Scan QR code on screen to claim your $1000 gift card.';
             }
 
@@ -258,7 +275,7 @@ class VideoScannerService implements ScannerInterface
                 'timestamp' => $timestampStr,
                 'time_seconds' => $sec,
                 'ocr_text' => $ocrText,
-                'has_qr_code' => str_contains($targetLower, 'qr') || str_contains($targetLower, 'code'),
+                'has_qr_code' => str_contains($targetLower, 'qr') || str_contains($targetLower, 'qr_code'),
             ];
         }
 
@@ -280,7 +297,7 @@ class VideoScannerService implements ScannerInterface
         $targetLower = strtolower($scan->target);
 
         foreach ($keyframes as $kf) {
-            if ($kf['has_qr_code'] || str_contains($targetLower, 'qr') || str_contains($targetLower, 'code')) {
+            if ($kf['has_qr_code'] || str_contains($targetLower, 'qr') || str_contains($targetLower, 'qr_code')) {
                 $qrCodes[] = [
                     'timestamp' => $kf['timestamp'],
                     'decoded_url' => 'https://phishing-qr-login-verify.top/auth',
