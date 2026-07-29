@@ -19,6 +19,10 @@ class ReportResource extends JsonResource
             'summary' => $this->summary,
             'risk_score' => $this->risk_score,
             'report_data' => $this->report_data,
+            'indicators' => $this->whenLoaded('indicators'),
+            'evidence' => $this->whenLoaded('evidence'),
+            'recommendations' => $this->whenLoaded('recommendations'),
+            'tags' => $this->whenLoaded('tags'),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];
